@@ -230,6 +230,9 @@ runTests = (CoffeeScript) ->
 task 'test', 'run the CoffeeScript language test suite', ->
   runTests CoffeeScript
 
+task 'test:local', 'run the test suite with the local version', ->
+  csPath = './lib/coffee-script'
+  runTests require csPath
 
 task 'test:browser', 'run the test suite against the merged browser script', ->
   source = fs.readFileSync 'extras/coffee-script.js', 'utf-8'
