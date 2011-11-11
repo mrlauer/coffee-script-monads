@@ -563,6 +563,10 @@ grammar =
   MonadDo: [
     o 'MDO Expression INDENT MonadDoList TERMINATOR MonadFinal OUTDENT',
                                                 -> new MonadDo $2, $4, $6
+    o 'CPSDO INDENT MonadDoList TERMINATOR MonadFinal OUTDENT',
+                                                -> new CPSMonadDo $3, $5
+    o 'CPSRUN INDENT MonadDoList TERMINATOR MonadFinal OUTDENT',
+                                                -> new CPSMonadRun $3, $5
   ]
 
 

@@ -542,7 +542,7 @@ JS_KEYWORDS = [
 ]
 
 # CoffeeScript-only keywords.
-COFFEE_KEYWORDS = ['undefined', 'then', 'unless', 'until', 'loop', 'of', 'by', 'when', 'mdo', 'mlet']
+COFFEE_KEYWORDS = ['undefined', 'then', 'unless', 'until', 'loop', 'of', 'by', 'when', 'mdo', 'cpsdo', 'cpsrun', 'mlet']
 
 COFFEE_ALIAS_MAP =
   and  : '&&'

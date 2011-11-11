@@ -1767,9 +1767,8 @@ exports.If = class If extends Base
 # a monad do expression, a la Haskell. Sort of.
 # there may be some issues with scope here, as we do create scopes implicitly.
 # 
-exports.MonadDo = class MonadDo extends Base
-  constructor: (bind, intermediates, final) ->
-    @bind = bind
+MonadDoBase = class MonadDoBase extends Base
+  constructor: (intermediates, final) ->
     @intermediates = intermediates
     @final   = final
 
@@ -1778,6 +1777,11 @@ exports.MonadDo = class MonadDo extends Base
   isStatement: -> false
 
   jumps: NO # that is probably not safe.
+
+  doBind: (body, code) ->
+    return 'UNIMPL'
+
+  maybeRun: (node) -> node
 
   compileNode: (o) ->
     current = @final
@@ -1797,12 +1801,37 @@ exports.MonadDo = class MonadDo extends Base
                 code = new Code params, (Block.wrap lets.concat [current])
                 lets = []
                 # bind the body to the new function
-                current = new Call @bind, [body, code], no
+                current = @doBind body, code
         # if there are any let statements before the main body, wrap them and current in a function call
         if lets.length
             current = new Call (new Code [], Block.wrap lets.concat [current]), [], no
+    current = @maybeRun current
     "#{current.compile o}"
     
+# generic do
+exports.MonadDo = class MonadDo extends MonadDoBase
+  constructor: (bind, intermediates, final) ->
+    super intermediates, final
+    @bind = bind
+
+  doBind: (body, code) ->
+    return new Call @bind, [body, code], no
+
+# CPS do
+exports.CPSMonadDo = class CPSMonadDo extends MonadDoBase
+  constructor: (intermediates, final) ->
+    super intermediates, final
+
+  doBind: (body, code) ->
+    return new Call body, [code], no
+
+# CPS run: take a do and apply it to a trivial function
+exports.CPSMonadRun = class CPSMonadRun extends CPSMonadDo
+  constructor: (intermediates, final) ->
+    super intermediates, final
+
+  maybeRun: (node) ->
+    return new Call node, [(new Code [], new Block)], no
 
 
 # Faux-Nodes
