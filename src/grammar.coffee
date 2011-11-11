@@ -98,6 +98,7 @@ grammar =
     o 'For'
     o 'Switch'
     o 'Class'
+    o 'MonadDo'
   ]
 
   # An indented block of expressions. Note that the [Rewriter](rewriter.html)
@@ -537,6 +538,31 @@ grammar =
     o 'SimpleAssignable COMPOUND_ASSIGN
        INDENT Expression OUTDENT',              -> new Assign $1, $4, $2
     o 'SimpleAssignable EXTENDS Expression',    -> new Extends $1, $3
+  ]
+
+  MonadYield: [
+    o '<-'
+  ]
+
+  MonadFinal: [
+    o 'Expression',                             -> $1
+  ]
+
+  MonadIntermediate: [
+    o 'PARAM_START ParamList PARAM_END MonadYield Block',
+                                                -> { params : $2, body : $5 }
+    o 'MLET Assign',                            -> { let : $2 }
+  ]
+
+  MonadDoList: [
+    o 'MonadIntermediate',                      -> [ $1 ]
+    o 'MonadDoList TERMINATOR MonadIntermediate',   -> $1.concat $3
+    o 'MonadDoList TERMINATOR'
+  ]
+
+  MonadDo: [
+    o 'MDO Expression INDENT MonadDoList TERMINATOR MonadFinal OUTDENT',
+                                                -> new MonadDo $2, $4, $6
   ]
 
 

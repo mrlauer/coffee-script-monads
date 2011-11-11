@@ -1762,6 +1762,49 @@ exports.If = class If extends Base
   unfoldSoak: ->
     @soak and this
 
+#### MonadDo
+
+# a monad do expression, a la Haskell. Sort of.
+# there may be some issues with scope here, as we do create scopes implicitly.
+# 
+exports.MonadDo = class MonadDo extends Base
+  constructor: (bind, intermediates, final) ->
+    @bind = bind
+    @intermediates = intermediates
+    @final   = final
+
+  children: ['bind', 'intermediates', 'final']
+
+  isStatement: -> false
+
+  jumps: NO # that is probably not safe.
+
+  compileNode: (o) ->
+    current = @final
+    if @intermediates.length > 1
+        lets = []
+        for i in [@intermediates.length - 1 .. 0]
+            line = @intermediates[i]
+            if line.let?
+                lets.push line.let
+            else if line.body?
+                params = line.params
+                body = line.body
+                # wrap the body in a function call unless its a simple expression
+                if body.expressions.length != 1 || body.expressions[0].containsType Assign
+                    body = new Call (new Code [], body), [], no
+                # create a new function definition...
+                code = new Code params, (Block.wrap lets.concat [current])
+                lets = []
+                # bind the body to the new function
+                current = new Call @bind, [body, code], no
+        # if there are any let statements before the main body, wrap them and current in a function call
+        if lets.length
+            current = new Call (new Code [], Block.wrap lets.concat [current]), [], no
+    "#{current.compile o}"
+    
+
+
 # Faux-Nodes
 # ----------
 # Faux-nodes are never created by the grammar, but are used during code
