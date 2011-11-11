@@ -1762,11 +1762,9 @@ exports.If = class If extends Base
   unfoldSoak: ->
     @soak and this
 
-#### MonadDo
+#### Monads
 
-# a monad do expression, a la Haskell. Sort of.
-# there may be some issues with scope here, as we do create scopes implicitly.
-# 
+# The base class for the various flavors of monadic do.
 MonadDoBase = class MonadDoBase extends Base
   constructor: (intermediates, final) ->
     @intermediates = intermediates
@@ -1794,21 +1792,24 @@ MonadDoBase = class MonadDoBase extends Base
             else if line.body?
                 params = line.params
                 body = line.body
-                # wrap the body in a function call unless its a simple expression
+                # wrap the body in a function call unless it's a simple expression
                 if body.expressions.length != 1 || body.expressions[0].containsType Assign
-                    body = new Call (new Code [], body), [], no
+                    body = new Call (new Code [], body, 'boundfunc'), [], no
                 # create a new function definition...
-                code = new Code params, (Block.wrap lets.concat [current])
+                code = new Code params, (Block.wrap lets.concat [current]), 'boundfunc'
                 lets = []
                 # bind the body to the new function
                 current = @doBind body, code
         # if there are any let statements before the main body, wrap them and current in a function call
         if lets.length
-            current = new Call (new Code [], Block.wrap lets.concat [current]), [], no
+            current = new Call (new Code [], Block.wrap lets.concat [current], 'boundfunc'), [], no
     current = @maybeRun current
     "#{current.compile o}"
     
-# generic do
+#### MonadDo
+
+# a monad do expression, a la Haskell. Sort of.
+# this takes the monad bind function as an argument.
 exports.MonadDo = class MonadDo extends MonadDoBase
   constructor: (bind, intermediates, final) ->
     super intermediates, final
@@ -1817,7 +1818,9 @@ exports.MonadDo = class MonadDo extends MonadDoBase
   doBind: (body, code) ->
     return new Call @bind, [body, code], no
 
-# CPS do
+#### CPS do
+
+# Monadic do specialized to continuation-passing style, as in node.js.
 exports.CPSMonadDo = class CPSMonadDo extends MonadDoBase
   constructor: (intermediates, final) ->
     super intermediates, final
@@ -1825,7 +1828,9 @@ exports.CPSMonadDo = class CPSMonadDo extends MonadDoBase
   doBind: (body, code) ->
     return new Call body, [code], no
 
-# CPS run: take a do and apply it to a trivial function
+#### CPS run
+
+# Works by applying a CPS DO to a trivial function.
 exports.CPSMonadRun = class CPSMonadRun extends CPSMonadDo
   constructor: (intermediates, final) ->
     super intermediates, final
