@@ -1831,7 +1831,8 @@ exports.CPSMonadRun = class CPSMonadRun extends CPSMonadDo
     super intermediates, final
 
   maybeRun: (node) ->
-    return new Call node, [(new Code [], new Block)], no
+    caller = new Value new Parens Block.wrap [node]
+    return new Call caller, [(new Code [], new Block)], yes
 
 
 # Faux-Nodes
