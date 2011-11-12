@@ -1830,7 +1830,8 @@ exports.CPSMonadDo = class CPSMonadDo extends MonadDoBase
 
 #### CPS run
 
-# Works by applying a CPS DO to a trivial function.
+# Create a CPS Do block, then run it.
+# Which is to say, apply it to a trivial continuation
 exports.CPSMonadRun = class CPSMonadRun extends CPSMonadDo
   constructor: (intermediates, final) ->
     super intermediates, final
