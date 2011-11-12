@@ -1,7 +1,7 @@
 Monads in Coffeescript
 ======================
 
-This fork of Coffeescript is a trial implementation of monadic do notation, &agrave; [Haskell](http://www.haskell.org/haskellwiki/Monads).
+This fork of Coffeescript is a trial implementation of monadic do notation, &agrave; la [Haskell](http://www.haskell.org/haskellwiki/Monads).
 
 Monads are useful in Haskell-like pure functional languages to simulate imperative programming features, and to provide for non-functional operations
 like I/O in a pure-ish way. Obviously these considerations do not apply to Coffeescript, an imperative language. But since javascript, and hence Coffeescript, are halfway to being functional (albeit very impure) languages, monads do fit reasonably naturally into them.
