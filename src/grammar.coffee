@@ -553,7 +553,10 @@ grammar =
                                                 -> { params : $2, body : $5 }
     o 'MonadYield Block',                       -> { params : [], body : $2 }
     o 'MonadFinal',                             -> { params : [], body : Block.wrap [$1] }
-    o 'MLET Assign',                            -> { let : $2 }
+    o 'MLET PARAM_START ParamList PARAM_END MonadYield Block',
+                                                -> { let: true, params : $3, body : $6 }
+    o 'MLET ParamList MonadYield Block',
+                                                -> { let: true, params : $2, body : $4 }
   ]
 
   MonadDoList: [

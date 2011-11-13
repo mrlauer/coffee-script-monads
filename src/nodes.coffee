@@ -1784,25 +1784,22 @@ MonadDoBase = class MonadDoBase extends Base
   compileNode: (o) ->
     current = @final
     if @intermediates.length
-        lets = []
         for i in [@intermediates.length - 1 .. 0]
-            line = @intermediates[i]
+          line = @intermediates[i]
+          if line.body?
+            params = line.params
+            body = line.body
+            # wrap the body in a function call unless it's a simple expression
+            if body.expressions.length != 1 || body.expressions[0].containsType Assign
+              body = new Call (new Code [], body, 'boundfunc'), [], no
+            # create a new function definition...
+            code = new Code params, (Block.wrap [current]), 'boundfunc'
             if line.let?
-                lets.unshift line.let
-            else if line.body?
-                params = line.params
-                body = line.body
-                # wrap the body in a function call unless it's a simple expression
-                if body.expressions.length != 1 || body.expressions[0].containsType Assign
-                    body = new Call (new Code [], body, 'boundfunc'), [], no
-                # create a new function definition...
-                code = new Code params, (Block.wrap lets.concat [current]), 'boundfunc'
-                lets = []
-                # bind the body to the new function
-                current = @doBind body, code
-        # if there are any let statements before the main body, wrap them and current in a function call
-        if lets.length
-            current = new Call (new Code [], Block.wrap lets.concat [current], 'boundfunc'), [], no
+              # just wrap current inside a function call that assigns stuff
+              current = new Call code, [body], no
+            else
+              # bind the body to the new function
+              current = @doBind body, code
     current = @maybeRun current
     "#{current.compile o}"
     

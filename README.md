@@ -78,6 +78,6 @@ Basic syntax should be evident from the examples above. Just a few notes:
     The same, but with nothing acutally bound.
   * `expression`
     Just like the previous form. The only difference is that with the <- the right-hand side can be a multiline block.
-  * `mlet a = expression`
-    Assign some non-monadic variable. It translates directly into a simple assignment statement. `mlet` &ldquo;bindings&rdquo; (they&rquo;e really and truly assignments) follow the same scoping rules as ordinary variables in nested functions.
+  * `mlet (a) <- block`
+    Bind some non-monadic variable. This is NOT an assignment, but rather a new binding--if the variable exists in an outer scope it is not changed. That is why the syntax is that of a monadic binding, not an assignment. The parentheses around the parameter(s) are optional
     

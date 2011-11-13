@@ -20,7 +20,7 @@ test "Array Monad More Complex", ->
     m = mdo bindArray
         (l) <- [1..3]
         (ll) <- ['a', 'b']
-        mlet sum = l + ll
+        mlet (sum) <- l + ll
         [sum]
     arrayEq ['1a', '1b', '2a', '2b', '3a', '3b'], m
 
@@ -36,13 +36,13 @@ test "Let", ->
     y=1
     m = mdo bindArray
         (x) <- [1..3]
-        mlet y = x+1
-        mlet z = y+1
+        mlet (y) <- x+1
+        mlet z <- y+1
         [z]
 
     arrayEq [3..5], m
-    # y should have been left at 4
-    eq y,4
+    # y should not have been touched
+    eq y,1
     # kinda messy way to make sure z isn't assigned in the outer scope
     zunassigned = true
     try
