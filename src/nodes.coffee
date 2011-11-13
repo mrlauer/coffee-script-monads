@@ -1783,12 +1783,12 @@ MonadDoBase = class MonadDoBase extends Base
 
   compileNode: (o) ->
     current = @final
-    if @intermediates.length 
+    if @intermediates.length
         lets = []
         for i in [@intermediates.length - 1 .. 0]
             line = @intermediates[i]
             if line.let?
-                lets.push line.let
+                lets.unshift line.let
             else if line.body?
                 params = line.params
                 body = line.body

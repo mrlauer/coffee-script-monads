@@ -32,6 +32,26 @@ test "Array If", ->
         [x + y]
     arrayEq ['1a', '1b', '2a', '3a', '3b'], m
 
+test "Let", ->
+    y=1
+    m = mdo bindArray
+        (x) <- [1..3]
+        mlet y = x+1
+        mlet z = y+1
+        [z]
+
+    arrayEq [3..5], m
+    # y should have been left at 4
+    eq y,4
+    # kinda messy way to make sure z isn't assigned in the outer scope
+    zunassigned = true
+    try
+        eq z, 0
+        zunassigned = false
+    catch error
+        zunassigned = (error instanceof ReferenceError)
+    ok zunassigned
+
 # this binding
 ArrayMonadHelper = class ArrayMonadHelper
     constructor: ->
