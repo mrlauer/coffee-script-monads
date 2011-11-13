@@ -68,7 +68,8 @@ cpsrun
 
 Syntax
 ------
-Basic syntax should be evident from the examples above. Just a few notes
+Basic syntax should be evident from the examples above. Just a few notes:
+
 * The last statement in a monadic do block must be a simple expression. For mdo and cpsdo it should evaluate to the proper monadic type. In cpsrun that can be any expression, although if it is a function will be applied to a trivial continuation.
 * The other statements in the do block are monad bindings and variable assignments. They can be of these forms:
   * `(a) <- block`
