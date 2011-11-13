@@ -80,4 +80,24 @@ Basic syntax should be evident from the examples above. Just a few notes:
     Just like the previous form. The only difference is that with the <- the right-hand side can be a multiline block.
   * `mlet (a) <- block`
     Bind some non-monadic variable. This is NOT an assignment, but rather a new binding--if the variable exists in an outer scope it is not changed. That is why the syntax is that of a monadic binding, not an assignment. The parentheses around the parameter(s) are optional
+
+Only one parameter is allowed on the left-hand side of an `mlet` binding, although it can be a complex pattern (an array or object). Any number of parameters are allowed on the left-hand side of a monadic binding, although depending on the monad all but the first may not be bound as you expect. Multiple parameters are meaningful for the Continuation monad, for example, which could be defined with the binding
+
+```coffeescript
+cpbind = (m, f) ->
+    return (g) -> m ((a...) -> (f a...) g)
+```
+
+Installation
+------------
+I have not been properly checking the compiled files into lib; that makes it a little easier for me to recover from silly mistakes. If you want to install you'll have to build. The process is something like this:
+
+```sh
+git clone git://github.com/mrlauer/coffee-script-monads.git
+cd coffee-script-monads
+git checkout monad      # you should already be in that branch
+cake build
+cake build:parser
+cake -p /path/to/install install
+```
     
