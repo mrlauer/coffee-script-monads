@@ -8,7 +8,7 @@ like I/O in a pure-ish way. Obviously these considerations do not apply to Coffe
 
 The immediate motivation for this project is the [continuation-passing style](http://en.wikipedia.org/wiki/Continuation-passing_style) (CPS) of programming required by node.js. While callbacks are relatively natural in javascript and Coffeescript, the syntax and structure can leave something to be desired. It is easy to find oneself nested half a dozen levels deep in callbacks, and the indentation alone is potentially frustrating. Since continuations are a monad, we can use monadic do-blocks to make a series of nested callbacks look more like a &ldquo;normal&rdquo; block of code. If nothing else, the extra indentation goes away.
 
-Basic Syntax
+Basic Usage
 ------------
 
 The syntax is based on Haskell. In the generic form, using the keyword `mdo`, the programmer has to specify a `bind` function. Here is a simple implementation of the List monad:
@@ -39,6 +39,12 @@ cpsrun
     console.log f + g
 ```
 
+This deserves a little exposition. In Haskell-ish notation the continuation monad is
+
+    M t = (t -> a) -> a
+
+That is, it's a functional double-dual, a continuation-processor a function whose argument is itself a function taking the base type. In coffeescript that means the right-hand sides of the bindings should evaluate to functions that take a continuation. Since in node.js functions like `readFile` take a continuation as a final argument, we use bind to curry the function into the form we need.
+
 We can easily augment this to include some error-handling (very poor error-handling in this case)
 
 ```coffeescript
@@ -59,3 +65,18 @@ cpsrun
     cpsreturn console.log "read bar", this
     console.log f + g
 ```
+
+Syntax
+------
+Basic syntax should be evident from the examples above. Just a few notes
+* The last statement in a monadic do block must be a simple expression. For mdo and cpsdo it should evaluate to the proper monadic type. In cpsrun that can be any expression, although if it is a function will be applied to a trivial continuation.
+* The other statements in the do block are monad bindings and variable assignments. They can be of these forms:
+  * `(a) <- block`
+    The left-hand side can be anything that can appear as the arugments of a function definition. The right-hand side should evaluate to the monadic type.
+  * `<- block`
+    The same, but with nothing acutally bound.
+  * `expression`
+    Just like the previous form. The only difference is that with the <- the right-hand side can be a multiline block.
+  * `mlet a = expression`
+    Assign some non-monadic variable. It translates directly into a simple assignment statement. `mlet` &ldquo;bindings&rdquo; (they&rquo;e really and truly assignments) follow the same scoping rules as ordinary variables in nested functions.
+    
