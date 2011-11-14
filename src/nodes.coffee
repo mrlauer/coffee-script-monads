@@ -1765,8 +1765,13 @@ exports.If = class If extends Base
 #### Monads
 
 # A helper to extract something from an (expression that evaluates to) an object
-lookupKey = (objExpr, index) ->
-    (new Value objExpr).add new Access new Literal index
+__lookupKey = (objExpr, index) ->
+    (new Value objExpr, []).add new Index new Literal ("'" + index + "'")
+
+__wrapCall = (args, body) ->
+    _argNames = (k for k of args)
+    _argVals = (args[k] for k in _argNames)
+    return new Call (new Code (new Param new Value new Literal k for k in _argNames), (Block.wrap [body]), "boundfunc"), _argVals, no
 
 # The base class for the various flavors of monadic do.
 MonadDoBase = class MonadDoBase extends Base
@@ -1780,8 +1785,13 @@ MonadDoBase = class MonadDoBase extends Base
 
   jumps: NO # that is probably not safe.
 
-  doBind: (body, code) ->
-    return 'UNIMPL'
+  error: (msg) -> "Error in monad block: " + msg
+
+  doBind: (body, code) -> @error "Bind undefined"
+
+  doReturn: (expr) -> @error "Return undefined"
+
+  wrap: (expr) -> @error "Wrap undefined"
 
   maybeRun: (node) -> node
 
@@ -1796,6 +1806,10 @@ MonadDoBase = class MonadDoBase extends Base
             # wrap the body in a function call unless it's a simple expression
             if body.expressions.length != 1 || body.expressions[0].containsType Assign
               body = new Call (new Code [], body, 'boundfunc'), [], no
+            if line.condition?
+              __ifblock = new If line.condition, body, type : "IF"
+              __ifblock.addElse Block.wrap [@doReturn new Literal "null"]
+              body = __ifblock
             # create a new function definition...
             code = new Code params, (Block.wrap [current]), 'boundfunc'
             if line.let?
@@ -1804,6 +1818,7 @@ MonadDoBase = class MonadDoBase extends Base
             else
               # bind the body to the new function
               current = @doBind body, code
+    current = @wrap current
     current = @maybeRun current
     "#{current.compile o}"
     
@@ -1814,10 +1829,17 @@ MonadDoBase = class MonadDoBase extends Base
 exports.MonadDo = class MonadDo extends MonadDoBase
   constructor: (monad, intermediates, final) ->
     super intermediates, final
-    @bind = lookupKey monad, 'bind'
+    @bind = __lookupKey monad, 'bind'
+    @mreturn = __lookupKey monad, 'return'
 
   doBind: (body, code) ->
-    return new Call @bind, [body, code], no
+    return new Call (new Literal '__bind'), [body, code], no
+
+  doReturn: (expr) ->
+    return new Call (new Literal '__return'), [Block.wrap [expr]]
+
+  wrap: (expr) -> __wrapCall {}, expr
+  wrap: (expr) -> __wrapCall { '__bind' : @bind, '__return' : @mreturn }, expr
 
 #### CPS do
 
@@ -1828,6 +1850,12 @@ exports.CPSMonadDo = class CPSMonadDo extends MonadDoBase
 
   doBind: (body, code) ->
     return new Call body, [code], no
+
+  doReturn: (expr...) ->
+    return new Code [new Param new Literal "__MONADFUNCARG"], Block.wrap \
+        [new Call (new Value new Literal "__MONADFUNCARG"), [expr...] ]
+
+  wrap: (expr) -> __wrapCall {}, expr
 
 #### CPS run
 

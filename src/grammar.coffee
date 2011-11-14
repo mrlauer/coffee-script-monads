@@ -553,6 +553,8 @@ grammar =
                                                 -> { params : $2, body : $5 }
     o 'MonadYield Block',                       -> { params : [], body : $2 }
     o 'MonadFinal',                             -> { params : [], body : Block.wrap [$1] }
+    o 'LEADING_WHEN Expression Block',          -> { condition: $2, params : [], body : $3 }
+    o 'Expression WHEN Expression',             -> { condition: $3, params : [], body : Block.wrap [$1] }
     o 'MLET PARAM_START Param PARAM_END MonadYield Block',
                                                 -> { let: true, params : [$3], body : $6 }
     o 'MLET Param MonadYield Block',
@@ -570,6 +572,8 @@ grammar =
                                                 -> new MonadDo $2, $4, $6
     o 'CPSDO INDENT MonadDoList TERMINATOR MonadFinal OUTDENT',
                                                 -> new CPSMonadDo $3, $5
+    o 'CPSDO Expression INDENT MonadDoList TERMINATOR MonadFinal OUTDENT',
+                                                -> new CPSMonadDo $4, $6, $2
     o 'CPSRUN INDENT MonadDoList TERMINATOR MonadFinal OUTDENT',
                                                 -> new CPSMonadRun $3, $5
   ]
