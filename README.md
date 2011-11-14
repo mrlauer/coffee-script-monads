@@ -14,11 +14,12 @@ Basic Usage
 The syntax is based on Haskell. In the generic form, using the keyword `mdo`, the programmer has to specify a `bind` function. Here is a simple implementation of the List monad:
 
 ```coffeescript
-bindArray = (m, f) ->
-    mapped = m.map f
-    return Array::concat.apply [], mapped
+ArrayMonad = {
+    bind : (m, f) ->
+        mapped = m.map f
+        return Array::concat.apply [], mapped
 
-m = mdo bindArray
+m = mdo ArrayMonad
     (x) <- [1..3]
     (y) <- ['a', 'b']
     [x+y]
@@ -26,7 +27,7 @@ m = mdo bindArray
 
 Here `m` will be equal to `[ '1a', '1b', '2a', '2b', '3a', '3b' ]`---note that this is a way of creating a list comprehension, generally not [convenient](http://brehaut.net/blog/2011/coffeescript_comprehensions) in Coffeescript.
 
-Since the prime motivation is CPS, there is a specialization `cpsdo` that needs no `bind`, and that generates more optimized code. There is also a `cpsrun` construction that creates a continuation monad and applies it to a trivial continuation. Here's a silly example:
+Since the prime motivation is CPS, there is a specialization `cpsdo` that needs no explicit monad, and that generates more optimized code. There is also a `cpsrun` construction that creates a continuation monad and applies it to a trivial continuation. Here's a silly example:
 
 ```coffeescript
 # A monadic return function that takes a value and returns a monadic continuation-callar

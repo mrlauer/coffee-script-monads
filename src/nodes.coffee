@@ -1764,6 +1764,10 @@ exports.If = class If extends Base
 
 #### Monads
 
+# A helper to extract something from an (expression that evaluates to) an object
+lookupKey = (objExpr, index) ->
+    (new Value objExpr).add new Access new Literal index
+
 # The base class for the various flavors of monadic do.
 MonadDoBase = class MonadDoBase extends Base
   constructor: (intermediates, final) ->
@@ -1808,9 +1812,9 @@ MonadDoBase = class MonadDoBase extends Base
 # a monad do expression, a la Haskell. Sort of.
 # this takes the monad bind function as an argument.
 exports.MonadDo = class MonadDo extends MonadDoBase
-  constructor: (bind, intermediates, final) ->
+  constructor: (monad, intermediates, final) ->
     super intermediates, final
-    @bind = bind
+    @bind = lookupKey monad, 'bind'
 
   doBind: (body, code) ->
     return new Call @bind, [body, code], no

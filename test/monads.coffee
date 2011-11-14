@@ -1,40 +1,38 @@
 #### Arrays
-bindArray = (m, f) ->
-    mapped = m.map f
-    return Array::concat.apply [], mapped
-
-ifArray = (cond) ->
-    if cond
-        [null]
-    else
-        []
+ArrayMonad = {
+    bind : (m, f) ->
+        mapped = m.map f
+        return Array::concat.apply [], mapped
+    return : (a) -> [a]
+    guard : (cond) -> if cond then [null] else []
+}
 
 test "Array Monad Simple", ->
     l = [1..3]
-    m = mdo bindArray
+    m = mdo ArrayMonad
         (a) <- l
         [1..a]
     arrayEq [1, 1, 2, 1, 2, 3], m
 
 test "Array Monad More Complex", ->
-    m = mdo bindArray
+    m = mdo ArrayMonad
         (l) <- [1..3]
         (ll) <- ['a', 'b']
         mlet (sum) <- l + ll
-        [sum]
+        ArrayMonad.return sum
     arrayEq ['1a', '1b', '2a', '2b', '3a', '3b'], m
 
 test "Array If", ->
-    m = mdo bindArray
+    m = mdo ArrayMonad
         (x) <- [1..3]
         (y) <- ['a', 'b']
-        ifArray (x isnt 2 or y isnt 'b')
+        ArrayMonad.guard (x isnt 2 or y isnt 'b')
         [x + y]
     arrayEq ['1a', '1b', '2a', '3a', '3b'], m
 
 test "Let", ->
     y=1
-    m = mdo bindArray
+    m = mdo ArrayMonad
         (x) <- [1..3]
         mlet (y) <- x+1
         mlet z <- y+1
@@ -60,7 +58,7 @@ ArrayMonadHelper = class ArrayMonadHelper
     munge: (a) -> a + @fudge
 
     test: ->
-        m = mdo bindArray
+        m = mdo ArrayMonad
             (x) <- [1..3]
             (y) <- [this.munge x]
             [y]
