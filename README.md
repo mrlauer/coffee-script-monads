@@ -31,9 +31,11 @@ m = mdo ArrayMonad
 Here `m` will be equal to `[ '1a', '1b', '2a', '2b', '3a', '3b' ]`---note that this is a way of creating a list comprehension, generally not [convenient](http://brehaut.net/blog/2011/coffeescript_comprehensions) in Coffeescript.
 
 Inside the `mdo` block the functions `mbind`, `mreturn`, and `mzero` will be available if they were defined in the monad passed in. The first two are, as you should expect, the ordinary bind and return functions of the monad. The third, which does not make sense for all moands, should be a "zero monad" in the sense that 
+
 ```coffeescript
 mbind mzero, fn === mzero
 ```
+
 for any `fn`. It can be used as a "break"; see below.
 
 Since the prime motivation is CPS, there is a specialization `cpsdo` that needs no explicit monad, and that generates more optimized code. Here's a silly example:
@@ -52,7 +54,7 @@ This deserves a little exposition. In Haskell-ish notation the continuation mona
 
     M t = (t -> a) -> a
 
-That is, it's a functional double-dual, a continuation-processor a function whose argument is itself a function taking the base type. In coffeescript that means the right-hand sides of the bindings should evaluate to functions that take a continuation. Since in node.js functions like `readFile` take a continuation as a final argument, we use bind to curry the function into the form we need.
+That is, it's a functional double-dual, a continuation-processor a function whose argument is itself a function taking the base type. In coffeescript that means the right-hand sides of the bindings should evaluate to functions that take a continuation. Since in node.js functions like `readFile` take a continuation as a final argument, we use `bind` to curry the function into the form we need.
 
 We can easily augment this to include some error-handling (very poor error-handling in this case)
 
@@ -64,12 +66,12 @@ cpsrun
     when err
         console.log "could not read foo"
         mzero
-    cpsreturn console.log "read foo"
+    mreturn console.log "read foo"
     (err, g) <- fs.readFile.bind null, 'bar.txt'
     when err
         console.log "could not read foo"
         mzero
-    cpsreturn console.log "read bar", this
+    mreturn console.log "read bar", this
     console.log f + g
 ```
 
