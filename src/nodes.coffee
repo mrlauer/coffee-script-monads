@@ -1767,15 +1767,6 @@ exports.If = class If extends Base
 
 #### Monads
 
-# A helper to extract something from an (expression that evaluates to) an object
-__lookupKey = (objExpr, index) ->
-    (new Value objExpr, []).add new Index new Literal ("'" + index + "'")
-
-__wrapCall = (args, body) ->
-    _argNames = (k for k of args)
-    _argVals = (args[k] for k in _argNames)
-    return new Call (new Code (new Param new Value new Literal k for k in _argNames), (Block.wrap [body]), "boundfunc"), _argVals, no
-
 # The base class for the various flavors of monadic do.
 MonadDoBase = class MonadDoBase extends Base
   constructor: (intermediates, final) ->
@@ -1797,6 +1788,14 @@ MonadDoBase = class MonadDoBase extends Base
   wrap: (expr) -> @error "Wrap undefined"
 
   maybeRun: (node) -> node
+
+  lookupKey: (objExpr, index) ->
+    (new Value objExpr, []).add new Index new Literal ("'" + index + "'")
+
+  wrapCall: (args, body) ->
+    _argNames = (k for k of args)
+    _argVals = (args[k] for k in _argNames)
+    return new Call (new Code (new Param new Literal k for k in _argNames), (Block.wrap [body]), "boundfunc"), _argVals, no
 
   compileNode: (o) ->
     current = @final
@@ -1832,8 +1831,8 @@ MonadDoBase = class MonadDoBase extends Base
 exports.MonadDo = class MonadDo extends MonadDoBase
   constructor: (monad, intermediates, final) ->
     super intermediates, final
-    @bind = __lookupKey monad, 'bind'
-    @mreturn = __lookupKey monad, 'return'
+    @bind = @lookupKey monad, 'bind'
+    @mreturn = @lookupKey monad, 'return'
 
   doBind: (body, code) ->
     return new Call (new Literal '__bind'), [body, code], no
@@ -1841,8 +1840,8 @@ exports.MonadDo = class MonadDo extends MonadDoBase
   doReturn: (expr) ->
     return new Call (new Literal '__return'), [Block.wrap [expr]]
 
-  wrap: (expr) -> __wrapCall {}, expr
-  wrap: (expr) -> __wrapCall { '__bind' : @bind, '__return' : @mreturn }, expr
+  wrap: (expr) -> @wrapCall {}, expr
+  wrap: (expr) -> @wrapCall { '__bind' : @bind, '__return' : @mreturn }, expr
 
 #### CPS do
 
@@ -1858,7 +1857,8 @@ exports.CPSMonadDo = class CPSMonadDo extends MonadDoBase
     return new Code [new Param new Literal "__MONADFUNCARG"], Block.wrap \
         [new Call (new Value new Literal "__MONADFUNCARG"), [expr...] ]
 
-  wrap: (expr) -> __wrapCall {}, expr
+  wrap: (expr) -> @wrapCall {}, expr
+
 
 #### CPS run
 
@@ -1937,6 +1937,23 @@ UTILITIES =
   hasProp: -> 'Object.prototype.hasOwnProperty'
   slice  : -> 'Array.prototype.slice'
 
+  # For the cps monad
+  cpsreturn : -> """
+    function() {
+      var args;
+      args = 1 <= arguments.length ? #{utility 'slice'}.call(arguments, 0) : [];
+      return function(f) {
+        return f.apply(null, args);
+      };
+    }
+  """
+
+  cpszero : -> """
+    function() {
+      return function() {};
+    }
+  """
+    
 # Levels indicate a node's position in the AST. Useful for knowing if
 # parens are necessary or superfluous.
 LEVEL_TOP    = 1  # ...;

@@ -22,7 +22,7 @@ test "Array Monad More Complex", ->
         ArrayMonad.return sum
     arrayEq ['1a', '1b', '2a', '2b', '3a', '3b'], m
 
-test "Array If", ->
+test "Array Guard", ->
     m = mdo ArrayMonad
         (x) <- [1..3]
         (y) <- ['a', 'b']
@@ -50,6 +50,16 @@ test "Let", ->
         zunassigned = (error instanceof ReferenceError)
     ok zunassigned
 
+# when
+test "when", ->
+    results = []
+    m = mdo ArrayMonad
+        (x) <- [1..4]
+        ArrayMonad.return results.push x when x >= 3
+        [x]
+    arrayEq [1..4], m
+    arrayEq [3, 4], results
+
 # this binding
 ArrayMonadHelper = class ArrayMonadHelper
     constructor: ->
@@ -68,5 +78,30 @@ helper = new ArrayMonadHelper
 helper.test()
 
 #### Continuations
-results = []
+cpsreturn = (args...) -> (f) -> f args...
+CPSHelper = class CPSHelper
+    constructor: ->
+        @results = []
+
+    addResult: (x) ->
+        cpsreturn @results.push x
+
+    getSomeData: (data, err=false) ->
+        (f) -> f err, "Data is #{data}"
+
+
+test "simple cps", ->
+    cpshelper = new CPSHelper
+    ( ->
+        c = cpsdo
+            (err, data) <- this.getSomeData "data1"
+            this.addResult data when not err
+            (err, data) <- this.getSomeData "data2", true
+            this.addResult data when not err
+            (err, data) <- this.getSomeData "data3"
+            when not err
+                this.addResult data
+            cpsreturn null
+    ).call cpshelper
+    arrayEq ["Data is data1", "Data is data3"], cpshelper.results
 

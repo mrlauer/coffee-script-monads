@@ -18,6 +18,8 @@ ArrayMonad = {
     bind : (m, f) ->
         mapped = m.map f
         return Array::concat.apply [], mapped
+    return : x -> [x]
+}
 
 m = mdo ArrayMonad
     (x) <- [1..3]
@@ -49,20 +51,20 @@ That is, it's a functional double-dual, a continuation-processor a function whos
 We can easily augment this to include some error-handling (very poor error-handling in this case)
 
 ```coffeescript
-# This simply stops processing if the condition is true
-cpsbreakif = (b) -> 
-  if b
-    (fn) -> null
-  else
-    (fn) -> fn()
+# This simply stops processing---it's `mzero`
+cpsbreak = (fn) -> null
 
 # As above, but stop if we can't read the file.
 cpsrun
     (err, f) <- fs.readFile.bind null, 'foo.txt'
-    cpsbreakif err
+    when err
+        console.log "could not read foo"
+        cpsbreak
     cpsreturn console.log "read foo"
     (err, g) <- fs.readFile.bind null, 'bar.txt'
-    cpsbreakif err
+    when err
+        console.log "could not read foo"
+        cpsbreak
     cpsreturn console.log "read bar", this
     console.log f + g
 ```
@@ -79,6 +81,9 @@ Basic syntax should be evident from the examples above. Just a few notes:
     The same, but with nothing acutally bound.
   * `expression`
     Just like the previous form. The only difference is that with the <- the right-hand side can be a multiline block.
+  * `when condition block`
+  * `expression when condition`
+    Both of these forms are monad conditionals with no else clause. A simple if-else works fine too, as long as both branches yield monadic objects when evaluated.
   * `mlet (a) <- block`
     Bind some non-monadic variable. This is NOT an assignment, but rather a new binding--if the variable exists in an outer scope it is not changed. That is why the syntax is that of a monadic binding, not an assignment. The parentheses around the parameter(s) are optional
 
