@@ -1797,6 +1797,12 @@ MonadDoBase = class MonadDoBase extends Base
     _argVals = (args[k] for k in _argNames)
     return new Call (new Code (new Param new Literal k for k in _argNames), (Block.wrap [body]), "boundfunc"), _argVals, no
 
+  wrapCallMapArgs: (argnames, body, mapfn) ->
+    _args = {}
+    for _k in argnames
+      _args[_k] = mapfn _k
+    @wrapCall _args, body
+
   compileNode: (o) ->
     current = @final
     if @intermediates.length
@@ -1831,17 +1837,17 @@ MonadDoBase = class MonadDoBase extends Base
 exports.MonadDo = class MonadDo extends MonadDoBase
   constructor: (monad, intermediates, final) ->
     super intermediates, final
+    @monad = monad
     @bind = @lookupKey monad, 'bind'
     @mreturn = @lookupKey monad, 'return'
 
   doBind: (body, code) ->
-    return new Call (new Literal '__bind'), [body, code], no
+    return new Call (new Literal 'mbind'), [body, code], no
 
   doReturn: (expr) ->
-    return new Call (new Literal '__return'), [Block.wrap [expr]]
+    return new Call (new Literal 'mreturn'), [Block.wrap [expr]]
 
-  wrap: (expr) -> @wrapCall {}, expr
-  wrap: (expr) -> @wrapCall { '__bind' : @bind, '__return' : @mreturn }, expr
+  wrap: (expr) -> @wrapCallMapArgs [ 'mbind',  'mreturn', 'mzero' ], expr, ((name) => @lookupKey @monad, name[1..])
 
 #### CPS do
 
@@ -1857,7 +1863,7 @@ exports.CPSMonadDo = class CPSMonadDo extends MonadDoBase
     return new Code [new Param new Literal "__MONADFUNCARG"], Block.wrap \
         [new Call (new Value new Literal "__MONADFUNCARG"), [expr...] ]
 
-  wrap: (expr) -> @wrapCall {}, expr
+  wrap: (expr) -> @wrapCallMapArgs [ 'mbind',  'mreturn', 'mzero' ], expr, ((name) => new Literal utility ('cps' + name[1..]))
 
 
 #### CPS run
@@ -1938,6 +1944,18 @@ UTILITIES =
   slice  : -> 'Array.prototype.slice'
 
   # For the cps monad
+  cpsbind : -> """
+    function(m, f) {
+      return function(g) {
+        return m((function() {
+          var a;
+          a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+          return (f.apply(null, a))(g);
+        }));
+      };
+    }
+  """
+  
   cpsreturn : -> """
     function() {
       var args;

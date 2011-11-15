@@ -19,6 +19,7 @@ ArrayMonad = {
         mapped = m.map f
         return Array::concat.apply [], mapped
     return : x -> [x]
+    zero : []
 }
 
 m = mdo ArrayMonad
@@ -29,16 +30,21 @@ m = mdo ArrayMonad
 
 Here `m` will be equal to `[ '1a', '1b', '2a', '2b', '3a', '3b' ]`---note that this is a way of creating a list comprehension, generally not [convenient](http://brehaut.net/blog/2011/coffeescript_comprehensions) in Coffeescript.
 
-Since the prime motivation is CPS, there is a specialization `cpsdo` that needs no explicit monad, and that generates more optimized code. There is also a `cpsrun` construction that creates a continuation monad and applies it to a trivial continuation. Here's a silly example:
+Inside the `mdo` block the functions `mbind`, `mreturn`, and `mzero` will be available if they were defined in the monad passed in. The first two are, as you should expect, the ordinary bind and return functions of the monad. The third, which does not make sense for all moands, should be a "zero monad" in the sense that 
+```coffeescript
+mbind mzero, fn === mzero
+```
+for any `fn`. It can be used as a "break"; see below.
+
+Since the prime motivation is CPS, there is a specialization `cpsdo` that needs no explicit monad, and that generates more optimized code. Here's a silly example:
 
 ```coffeescript
 # A monadic return function that takes a value and returns a monadic continuation-callar
-cpsreturn = (args...) -> ((f) -> f args...)
-cpsrun
+cpsdo
     (err, f) <- fs.readFile.bind null, 'foo.txt'
-    cpsreturn console.log "read foo"
+    mreturn console.log "read foo"
     (err, g) <- fs.readFile.bind null, 'bar.txt'
-    cpsreturn console.log "read bar"
+    mreturn console.log "read bar"
     console.log f + g
 ```
 
@@ -51,20 +57,18 @@ That is, it's a functional double-dual, a continuation-processor a function whos
 We can easily augment this to include some error-handling (very poor error-handling in this case)
 
 ```coffeescript
-# This simply stops processing---it's `mzero`
-cpsbreak = (fn) -> null
 
 # As above, but stop if we can't read the file.
 cpsrun
     (err, f) <- fs.readFile.bind null, 'foo.txt'
     when err
         console.log "could not read foo"
-        cpsbreak
+        mzero
     cpsreturn console.log "read foo"
     (err, g) <- fs.readFile.bind null, 'bar.txt'
     when err
         console.log "could not read foo"
-        cpsbreak
+        mzero
     cpsreturn console.log "read bar", this
     console.log f + g
 ```
@@ -93,6 +97,17 @@ Only one parameter is allowed on the left-hand side of an `mlet` binding, althou
 cpbind = (m, f) ->
     return (g) -> m ((a...) -> (f a...) g)
 ```
+
+`this` is bound to whatever it is outside the mdo block.
+
+The monad definition passed to `mdo` must contain a `bind` function. `when` (and other things to come) will work only if it also contains a `return`.
+
+
+Issues
+------
+* Nothing is stable yet. I change my mind frequently.
+* Variables mentioned inside a statement in a do block are locally scoped unless they are mentioned BEFORE the block. That is, if a variable does not appear outside the do block it is NOT shared between statements in the block. Use an `mlet` or an external variable if you want to share. This is more or less on purpose, as the alternative seems (to me) much more confusing.
+* There should be a better way of introducing a whole suite of monadic functions as in Haskell's Control.Monad.
 
 Installation
 ------------

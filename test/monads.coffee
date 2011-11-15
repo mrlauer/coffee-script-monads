@@ -4,6 +4,7 @@ ArrayMonad = {
         mapped = m.map f
         return Array::concat.apply [], mapped
     return : (a) -> [a]
+    zero : []
     guard : (cond) -> if cond then [null] else []
 }
 
@@ -26,7 +27,8 @@ test "Array Guard", ->
     m = mdo ArrayMonad
         (x) <- [1..3]
         (y) <- ['a', 'b']
-        ArrayMonad.guard (x isnt 2 or y isnt 'b')
+        mzero when x is 2 and y is 'b'
+#         ArrayMonad.guard (x isnt 2 or y isnt 'b')
         [x + y]
     arrayEq ['1a', '1b', '2a', '3a', '3b'], m
 
@@ -71,7 +73,7 @@ ArrayMonadHelper = class ArrayMonadHelper
         m = mdo ArrayMonad
             (x) <- [1..3]
             (y) <- [this.munge x]
-            [y]
+            mreturn y
         arrayEq [4, 5, 6], m
 
 helper = new ArrayMonadHelper
@@ -104,4 +106,51 @@ test "simple cps", ->
             cpsreturn null
     ).call cpshelper
     arrayEq ["Data is data1", "Data is data3"], cpshelper.results
+
+test "guard in cps", ->
+    cpshelper = new CPSHelper
+    ( ->
+        c = cpsdo
+            (err, data) <- this.getSomeData "data1"
+            this.addResult data when not err
+            mzero when err
+            (err, data) <- this.getSomeData "data2", true
+            mzero when err
+            this.a data when not err
+            (err, data) <- this.getSomeData "data3"
+            mzero when err
+            this.addResult data
+            mreturn null
+    ).call cpshelper
+    arrayEq ["Data is data1"], cpshelper.results
+
+test "mlet in cps", ->
+    cpshelper = new CPSHelper
+    ( ->
+        c = cpsdo
+            mlet [err, data] <- [false, "data1"]
+            this.addResult data when not err
+            mlet [err, data] <- [true, "data2"]
+            this.addResult data when not err
+            mlet [err, data] <- [false, "data3"]
+            when not err
+                this.addResult data
+            cpsreturn null
+    ).call cpshelper
+    arrayEq ["data1", "data3"], cpshelper.results
+
+test "mreturn in cps", ->
+    cpshelper = new CPSHelper
+    ( ->
+        c = cpsdo
+            (err, data) <- mreturn false, "data1"
+            this.addResult data when not err
+            ([err, data]) <- mreturn [true, "data2"]
+            this.addResult data when not err
+            ([err, data]) <- mreturn [false, "data3"]
+            when not err
+                this.addResult data
+            cpsreturn null
+    ).call cpshelper
+    arrayEq ["data1", "data3"], cpshelper.results
 
