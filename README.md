@@ -109,7 +109,6 @@ Issues
 ------
 * Nothing is stable yet. I change my mind frequently.
 * Variables first defined (i.e. assigned) in the right-hand side of a binding are available to subsequent bindings. I worry that that could be confusing. For example
-
   ```coffeescript
   cpsdo
     (a) <- Something
@@ -119,7 +118,6 @@ Issues
     (c) <- i
     mreturn result
   ```
-
   That seems necessary for the CPS monad to be useful, but I worry that it could be confusing. Note that variables first used inside a monadic do block will not leak outside; the blocks are wrapped in a function call and hence get a scope.
 * There should be a better way of introducing a whole suite of monadic functions as in Haskell's Control.Monad.
 
