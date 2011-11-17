@@ -117,9 +117,10 @@ Issues
       i = a
       [Something Else]
     (c) <- i
-    mreturn result
+    mreturn c
   ```
-  That seems necessary for the CPS monad to be useful, but I worry that it could be confusing. Note that variables first used inside a monadic do block will not leak outside; the blocks are wrapped in a function call and hence get a scope.
+
+* That seems necessary for the CPS monad to be useful, but I worry that it could be confusing. Note that variables first used inside a monadic do block will not leak outside; the blocks are wrapped in a function call and hence get a scope.
 * There should be a better way of introducing a whole suite of monadic functions as in Haskell's Control.Monad.
 
 Installation
