@@ -30,7 +30,7 @@ m = mdo ArrayMonad
 
 Here `m` will be equal to `[ '1a', '1b', '2a', '2b', '3a', '3b' ]`---note that this is a way of creating a list comprehension, generally not [convenient](http://brehaut.net/blog/2011/coffeescript_comprehensions) in Coffeescript.
 
-Inside the `mdo` block the functions `mbind`, `mreturn`, and `mzero` will be available if they were defined in the monad passed in. The first two are, as you should expect, the ordinary bind and return functions of the monad. The third, which does not make sense for all moands, should be a "zero monad" in the sense that 
+Inside the `mdo` block the functions `mbind`, `mreturn`, and `mzero` will be available if `bind`, `return`, and `zero` were defined in the monad object passed in. The first two are, as you should expect, the ordinary bind and return functions of the monad. The third, which does not make sense for all moands, should be a "zero monad" in the sense that 
 
 ```coffeescript
 mbind mzero, fn === mzero
@@ -108,7 +108,19 @@ The monad definition passed to `mdo` must contain a `bind` function. `when` (and
 Issues
 ------
 * Nothing is stable yet. I change my mind frequently.
-* Variables mentioned inside a statement in a do block are locally scoped unless they are mentioned BEFORE the block. That is, if a variable does not appear outside the do block it is NOT shared between statements in the block. Use an `mlet` or an external variable if you want to share. This is more or less on purpose, as the alternative seems (to me) much more confusing.
+* Variables first defined (i.e. assigned) in the right-hand side of a binding are available to subsequent bindings. I worry that that could be confusing. For example
+
+  ```coffeescript
+  cpsdo
+    (a) <- Something
+    (b) <-
+      i = a
+      [Something Else]
+    (c) <- i
+    mreturn result
+  ```
+
+  That seems necessary for the CPS monad to be useful, but I worry that it could be confusing. Note that variables first used inside a monadic do block will not leak outside; the blocks are wrapped in a function call and hence get a scope.
 * There should be a better way of introducing a whole suite of monadic functions as in Haskell's Control.Monad.
 
 Installation

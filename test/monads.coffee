@@ -44,13 +44,20 @@ test "Let", ->
     # y should not have been touched
     eq y,1
     # kinda messy way to make sure z isn't assigned in the outer scope
-    zunassigned = true
-    try
-        eq z, 0
-        zunassigned = false
-    catch error
-        zunassigned = (error instanceof ReferenceError)
-    ok zunassigned
+    ok not z?
+
+test "Assign in Array Monad", ->
+    m = mdo ArrayMonad
+        (x) <- 
+            i = 3
+            [1..3]
+        (y) <-
+            j = x
+            [null]
+        [i, j]
+    arrayEq [3, 1, 3 , 2, 3, 3], m
+    ok not i?
+    ok not j?
 
 # when
 test "when", ->
@@ -153,4 +160,20 @@ test "mreturn in cps", ->
             cpsreturn null
     ).call cpshelper
     arrayEq ["data1", "data3"], cpshelper.results
+
+test "assignment in cps", ->
+    cpshelper = new CPSHelper
+    ( ->
+        c = cpsdo
+            (err, data1) <- mreturn false, "data1"
+            (data2) <- 
+                data3 = "this is data3"
+                mreturn data1 + "2"
+            this.addResult data3
+            this.addResult data2
+            mreturn null
+    ).call cpshelper
+    arrayEq ["this is data3", "data12"], cpshelper.results
+    ok not data3?
+
 

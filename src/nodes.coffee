@@ -1811,9 +1811,6 @@ MonadDoBase = class MonadDoBase extends Base
           if line.body?
             params = line.params
             body = line.body
-            # wrap the body in a function call unless it's a simple expression
-            if body.expressions.length != 1 || body.expressions[0].containsType Assign
-              body = new Call (new Code [], body, 'boundfunc'), [], no
             if line.condition?
               __ifblock = new If line.condition, body, type : "IF"
               __ifblock.addElse Block.wrap [@doReturn new Literal "null"]
