@@ -109,6 +109,7 @@ Issues
 ------
 * Nothing is stable yet. I change my mind frequently.
 * Variables first defined (i.e. assigned) in the right-hand side of a binding are available to subsequent bindings. I worry that that could be confusing. For example
+
   ```coffeescript
   cpsdo
     (a) <- Something
