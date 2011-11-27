@@ -77,7 +77,6 @@ grammar =
   # Pure statements which cannot be expressions.
   Statement: [
     o 'Return'
-    o 'Throw'
     o 'Comment'
     o 'STATEMENT',                              -> new Literal $1
   ]
@@ -98,6 +97,7 @@ grammar =
     o 'For'
     o 'Switch'
     o 'Class'
+    o 'Throw'
     o 'MonadDo'
   ]
 
@@ -127,6 +127,7 @@ grammar =
     o 'AlphaNumeric'
     o 'JS',                                     -> new Literal $1
     o 'REGEX',                                  -> new Literal $1
+    o 'DEBUGGER',                               -> new Literal $1
     o 'BOOL',                                   ->
       val = new Literal $1
       val.isUndefined = yes if $1 is 'undefined'
