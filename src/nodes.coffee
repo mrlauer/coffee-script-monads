@@ -232,7 +232,7 @@ exports.Block = class Block extends Base
         codes.push node.compile o, LEVEL_LIST
     if top
       if @spaced
-        return '\n' + codes.join('\n\n')
+        return "\n#{codes.join '\n\n'}\n"
       else
         return codes.join '\n'
     code = codes.join(', ') or 'void 0'
@@ -243,32 +243,23 @@ exports.Block = class Block extends Base
   # It would be better not to generate them in the first place, but for now,
   # clean up obvious double-parentheses.
   compileRoot: (o) ->
-    o.indent  = ""
+    o.indent  = if o.bare then '' else TAB
     o.scope   = new Scope null, this, null
     o.level   = LEVEL_TOP
     @spaced   = yes
     prelude   = ""
-    hasReturn = no
-    @traverseChildren no, (e) ->
-      hasReturn = yes if e instanceof Return
-      !hasReturn
-    if hasReturn or not o.bare
+    unless o.bare
       preludeExps = for exp, i in @expressions
         e = exp.unwrap()
         break unless e instanceof Comment or e instanceof Literal
         exp
       rest = @expressions[preludeExps.length...]
       @expressions = preludeExps
-      prelude = "#{@compileNode o}\n\n" if preludeExps.length
+      prelude = "#{@compileNode o}\n" if preludeExps.length
       @expressions = rest
-      # We assume that we will need the safety wrapper.
-      # This is our best guess without actually compiling.
-      o.indent = TAB
     code = @compileWithDeclarations o
-    # the `1` below accounts for `arguments`, always "in scope"
-    if hasReturn or (not o.bare and o.scope.variables.length > 1)
-      return "#{prelude}(function() {\n#{code}\n}).call(this);\n"
-    prelude + code
+    return prelude + code if o.bare
+    "#{prelude}(function() {\n#{code}\n}).call(this);\n"
 
   # Compile the expressions body for the contents of a function, with
   # declarations of all inner variables pushed up to the top.
@@ -892,6 +883,8 @@ exports.Class = class Class extends Base
         else
           if assign.variable.this
             func.static = yes
+            if func.bound
+              func.context = name
           else
             assign.variable = new Value(new Literal(name), [(new Access new Literal 'prototype'), new Access base ])
             if func instanceof Code and func.bound
@@ -935,12 +928,19 @@ exports.Class = class Class extends Base
     @walkBody name, o
     @ensureConstructor name
     @body.spaced = yes
-    @body.expressions.unshift new Extends lname, @parent if @parent
     @body.expressions.unshift @ctor unless @ctor instanceof Code
     @body.expressions.push lname
     @addBoundFunctions o
 
-    klass = new Parens Closure.wrap(@body), true
+    call  = Closure.wrap @body
+    
+    if @parent
+      @superClass = new Literal o.scope.freeVariable 'super', no
+      @body.expressions.unshift new Extends lname, @superClass
+      call.args.push @parent
+      call.variable.params.push new Param @superClass
+    
+    klass = new Parens call, yes
     klass = new Assign @variable, klass if @variable
     klass.compile o
 
@@ -1150,8 +1150,8 @@ exports.Code = class Code extends Base
     @body.makeReturn() unless wasEmpty or @noReturn
     if @bound
       if o.scope.parent.method?.bound
-        @bound = o.scope.parent.method.context
-      else
+        @bound = @context = o.scope.parent.method.context
+      else if not @static
         o.scope.parent.assign '_this', 'this'
     idt   = o.indent
     code  = 'function'
@@ -1391,7 +1391,7 @@ exports.Op = class Op extends Base
     "(#{code})"
 
   compileExistence: (o) ->
-    if @first.isComplex()
+    if @first.isComplex() and o.level > LEVEL_TOP
       ref = new Literal o.scope.freeVariable 'ref'
       fst = new Parens new Assign ref, @first
     else
@@ -1923,6 +1923,7 @@ Closure =
 
   literalArgs: (node) ->
     node instanceof Literal and node.value is 'arguments' and not node.asKey
+    
   literalThis: (node) ->
     (node instanceof Literal and node.value is 'this' and not node.asKey) or
       (node instanceof Code and node.bound)
