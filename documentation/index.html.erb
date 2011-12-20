@@ -134,7 +134,7 @@
 
     <p>
       <b>Latest Version:</b>
-      <a href="http://github.com/jashkenas/coffee-script/tarball/1.1.3">1.1.3</a>
+      <a href="http://github.com/jashkenas/coffee-script/tarball/1.2.0">1.2.0</a>
     </p>
 
     <h2>
@@ -502,7 +502,7 @@ Expressions
     <%= code_for('array_comprehensions') %>
     <p>
       Comprehensions should be able to handle most places where you otherwise
-      would use a loop, <b>each</b>/<b>forEach</b>, <b>map</b>, or <b>select</b>/<b>filter</b>:
+      would use a loop, <b>each</b>/<b>forEach</b>, <b>map</b>, or <b>select</b>/<b>filter</b>, for example:
       <tt>shortNames = (name for name in list when name.length &lt; 5)</tt><br />
       If you know the start and end of your loop, or would like to step through
       in fixed-size increments, you can use a range to specify the start and
@@ -720,6 +720,7 @@ Expressions
     </p>
     <p>
       Constructor functions are named, to better support helpful stack traces.
+      In the first class in the example below, <tt>this.constructor.name is "Animal"</tt>.
     </p>
     <%= code_for('classes', true) %>
     <p>
@@ -1096,6 +1097,33 @@ Expressions
       <span id="changelog" class="bookmark"></span>
       Change Log
     </h2>
+    
+    <p>
+      <b class="header" style="margin-top: 20px;">
+        <a href="https://github.com/jashkenas/coffee-script/compare/1.1.3...1.2.0">1.2.0</a>
+        <span class="timestamp"> &ndash; <small>Dec. 18, 2011</small></span>
+      </b>
+      <ul>
+        <li>
+          Multiple improvements to <tt>coffee --watch</tt> and <tt>--join</tt>.
+          You may now use both together, as well as add and remove
+          files and directories within a <tt>--watch</tt>'d folder.
+        </li>
+        <li>
+          The <tt>throw</tt> statement can now be used as part of an expression.
+        </li>
+        <li>
+          Block comments at the top of the file will now appear outside of the
+          safety closure wrapper.
+        </li>
+        <li>
+          Fixed a number of minor 1.1.3 regressions having to do with trailing
+          operators and unfinished lines, and a more major 1.1.3 regression that
+          caused bound functions <i>within</i> bound class functions to have the incorrect
+          <tt>this</tt>.
+        </li>
+      </ul>
+    </p>
     
     <p>
       <b class="header" style="margin-top: 20px;">

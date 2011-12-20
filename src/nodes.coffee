@@ -250,15 +250,14 @@ exports.Block = class Block extends Base
     prelude   = ""
     unless o.bare
       preludeExps = for exp, i in @expressions
-        e = exp.unwrap()
-        break unless e instanceof Comment or e instanceof Literal
+        break unless exp.unwrap() instanceof Comment
         exp
       rest = @expressions[preludeExps.length...]
       @expressions = preludeExps
-      prelude = "#{@compileNode o}\n" if preludeExps.length
+      prelude = "#{@compileNode merge(o, indent: '')}\n" if preludeExps.length
       @expressions = rest
     code = @compileWithDeclarations o
-    return prelude + code if o.bare
+    return code if o.bare
     "#{prelude}(function() {\n#{code}\n}).call(this);\n"
 
   # Compile the expressions body for the contents of a function, with
@@ -920,7 +919,7 @@ exports.Class = class Class extends Base
   # constructor, property assignments, and inheritance getting built out below.
   compileNode: (o) ->
     decl  = @determineName()
-    name  = decl or @name or '_Class'
+    name  = decl or '_Class'
     name = "_#{name}" if name.reserved
     lname = new Literal name
 
@@ -929,6 +928,7 @@ exports.Class = class Class extends Base
     @ensureConstructor name
     @body.spaced = yes
     @body.expressions.unshift @ctor unless @ctor instanceof Code
+    @body.expressions.unshift new Literal "#{name}.name = '#{name}'" if decl
     @body.expressions.push lname
     @addBoundFunctions o
 
@@ -1299,9 +1299,7 @@ exports.Op = class Op extends Base
   constructor: (op, first, second, flip ) ->
     return new In first, second if op is 'in'
     if op is 'do'
-      call = new Call first, first.params or []
-      call.do = yes
-      return call
+      return @generateDo first
     if op is 'new'
       return first.newInstance() if first instanceof Call and not first.do and not first.isNew
       first = new Parens first   if first instanceof Code and first.bound or first.do
@@ -1366,6 +1364,22 @@ exports.Op = class Op extends Base
 
   unfoldSoak: (o) ->
     @operator in ['++', '--', 'delete'] and unfoldSoak o, this, 'first'
+    
+  generateDo: (exp) ->
+    passedParams = []
+    func = if exp instanceof Assign and (ref = exp.value.unwrap()) instanceof Code
+      ref
+    else 
+      exp
+    for param in func.params or []
+      if param.value
+        passedParams.push param.value
+        delete param.value
+      else
+        passedParams.push param
+    call = new Call exp, passedParams
+    call.do = yes
+    call
 
   compileNode: (o) ->    
     isChain = @isChainable() and @first.isChainable()
@@ -1953,7 +1967,7 @@ UTILITIES =
 
   # Discover if an item is in an array.
   indexOf: -> """
-    Array.prototype.indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (#{utility 'hasProp'}.call(this, i) && this[i] === item) return i; } return -1; }
+    Array.prototype.indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; }
   """
 
   # Shortcuts to speed up the lookup time for native functions.
