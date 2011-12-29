@@ -227,7 +227,10 @@ exports.Block = class Block extends Base
       else if top
         node.front = true
         code = node.compile o
-        codes.push if node.isStatement o then code else "#{@tab}#{code};"
+        unless node.isStatement o
+          code = "#{@tab}#{code};"
+          code = "#{code}\n" if node instanceof Literal
+        codes.push code
       else
         codes.push node.compile o, LEVEL_LIST
     if top
@@ -677,6 +680,8 @@ exports.Range = class Range extends Base
     # Set up endpoints.
     known    = @fromNum and @toNum
     idx      = del o, 'index'
+    idxName  = del o, 'name'
+    namedIndex = idxName and idxName isnt idx
     varPart  = "#{idx} = #{@fromC}"
     varPart += ", #{@toC}" if @toC isnt @toVar
     varPart += ", #{@step}" if @step isnt @stepVar
@@ -696,9 +701,18 @@ exports.Range = class Range extends Base
     stepPart = if @stepVar
       "#{idx} += #{@stepVar}"
     else if known
-      if from <= to then "#{idx}++" else "#{idx}--"
+      if namedIndex
+        if from <= to then "++#{idx}" else "--#{idx}"
+      else
+        if from <= to then "#{idx}++" else "#{idx}--"
     else
-      "#{cond} ? #{idx}++ : #{idx}--"
+      if namedIndex
+        "#{cond} ? ++#{idx} : --#{idx}"
+      else
+        "#{cond} ? #{idx}++ : #{idx}--"
+
+    varPart  = "#{idxName} = #{varPart}" if namedIndex
+    stepPart = "#{idxName} = #{stepPart}" if namedIndex
 
     # The final loop body.
     "#{varPart}; #{condPart}; #{stepPart}"
@@ -863,7 +877,7 @@ exports.Class = class Class extends Base
   # Merge the properties from a top-level object as prototypal properties
   # on the class.
   addProperties: (node, name, o) ->
-    props = node.base.properties[0..]
+    props = node.base.properties[..]
     exprs = while assign = props.shift()
       if assign instanceof Assign
         base = assign.variable.base
@@ -909,6 +923,7 @@ exports.Class = class Class extends Base
       @ctor = new Code
       @ctor.body.push new Literal "#{name}.__super__.constructor.apply(this, arguments)" if @parent
       @ctor.body.push new Literal "#{@externalCtor}.apply(this, arguments)" if @externalCtor
+      @ctor.body.makeReturn()
       @body.expressions.unshift @ctor
     @ctor.ctor     = @ctor.name = name
     @ctor.klass    = null
@@ -928,18 +943,20 @@ exports.Class = class Class extends Base
     @ensureConstructor name
     @body.spaced = yes
     @body.expressions.unshift @ctor unless @ctor instanceof Code
-    @body.expressions.unshift new Literal "#{name}.name = '#{name}'" if decl
+    if decl
+      @body.expressions.unshift new Assign (new Value (new Literal name), [new Access new Literal 'name']), (new Literal "'#{name}'")
     @body.expressions.push lname
     @addBoundFunctions o
 
     call  = Closure.wrap @body
-    
+
     if @parent
       @superClass = new Literal o.scope.freeVariable 'super', no
       @body.expressions.unshift new Extends lname, @superClass
       call.args.push @parent
-      call.variable.params.push new Param @superClass
-    
+      params = call.variable.params or call.variable.base.params
+      params.push new Param @superClass
+
     klass = new Parens call, yes
     klass = new Assign @variable, klass if @variable
     klass.compile o
@@ -1075,7 +1092,7 @@ exports.Assign = class Assign extends Base
   compileConditional: (o) ->
     [left, rite] = @variable.cacheReference o
     if "?" in @context then o.isExistentialEquals = true
-    new Op(@context[0...-1], left, new Assign(rite, @value, '=') ).compile o
+    new Op(@context[...-1], left, new Assign(rite, @value, '=') ).compile o
 
   # Compile the assignment from an array splice literal, using JavaScript's
   # `Array#splice` method.
@@ -1213,7 +1230,7 @@ exports.Splat = class Splat extends Base
 
   compile: (o) ->
     if @index? then @compileParam o else @name.compile o
-    
+
   unwrap: -> @name
 
   # Utility function that converts an arbitrary number of elements, mixed with
@@ -1233,7 +1250,7 @@ exports.Splat = class Splat extends Base
       then "#{ utility 'slice' }.call(#{code})"
       else "[#{code}]"
     return args[0] + ".concat(#{ args[1..].join ', ' })" if index is 0
-    base = (node.compile o, LEVEL_LIST for node in list[0...index])
+    base = (node.compile o, LEVEL_LIST for node in list[...index])
     "[#{ base.join ', ' }].concat(#{ args.join ', ' })"
 
 #### While
@@ -1364,12 +1381,12 @@ exports.Op = class Op extends Base
 
   unfoldSoak: (o) ->
     @operator in ['++', '--', 'delete'] and unfoldSoak o, this, 'first'
-    
+
   generateDo: (exp) ->
     passedParams = []
     func = if exp instanceof Assign and (ref = exp.value.unwrap()) instanceof Code
       ref
-    else 
+    else
       exp
     for param in func.params or []
       if param.value
@@ -1381,9 +1398,9 @@ exports.Op = class Op extends Base
     call.do = yes
     call
 
-  compileNode: (o) ->    
+  compileNode: (o) ->
     isChain = @isChainable() and @first.isChainable()
-    # In chains, there's no need to wrap bare obj literals in parens, 
+    # In chains, there's no need to wrap bare obj literals in parens,
     # as the chained expression is wrapped.
     @first.front = @front unless isChain
     return @compileUnary     o if @isUnary()
@@ -1420,7 +1437,7 @@ exports.Op = class Op extends Base
     parts.push ' ' if op in ['new', 'typeof', 'delete'] or
                       plusMinus and @first instanceof Op and @first.operator is op
     if (plusMinus && @first instanceof Op) or (op is 'new' and @first.isStatement o)
-      @first = new Parens @first 
+      @first = new Parens @first
     parts.push @first.compile o, LEVEL_OP
     parts.reverse() if @flip
     parts.join ''
@@ -1488,15 +1505,15 @@ exports.Try = class Try extends Base
     o.indent  += TAB
     errorPart = if @error then " (#{ @error.compile o }) " else ' '
     tryPart   = @attempt.compile o, LEVEL_TOP
-    
+
     catchPart = if @recovery
       o.scope.add @error.value, 'param' unless o.scope.check @error.value
       " catch#{errorPart}{\n#{ @recovery.compile o, LEVEL_TOP }\n#{@tab}}"
     else unless @ensure or @recovery
       ' catch (_error) {}'
-      
+
     ensurePart = if @ensure then " finally {\n#{ @ensure.compile o, LEVEL_TOP }\n#{@tab}}" else ''
-      
+
     """#{@tab}try {
     #{tryPart}
     #{@tab}}#{ catchPart or '' }#{ensurePart}"""
@@ -1606,7 +1623,9 @@ exports.For = class For extends While
     scope.find(name,  immediate: yes) if name and not @pattern
     scope.find(index, immediate: yes) if index
     rvar      = scope.freeVariable 'results' if @returns
-    ivar      = (if @range then name else index) or scope.freeVariable 'i'
+    ivar      = (@object and index) or scope.freeVariable 'i'
+    kvar      = (@range and name) or index or ivar
+    kvarAssign = if kvar isnt ivar then "#{kvar} = " else ""
     # the `_by` variable is created twice in `Range`s if we don't prevent it from being declared here
     stepvar   = scope.freeVariable "step" if @step and not @range
     name      = ivar if @pattern
@@ -1615,18 +1634,19 @@ exports.For = class For extends While
     defPart   = ''
     idt1      = @tab + TAB
     if @range
-      forPart = source.compile merge(o, {index: ivar, @step})
+      forPart = source.compile merge(o, {index: ivar, name, @step})
     else
       svar    = @source.compile o, LEVEL_LIST
       if (name or @own) and not IDENTIFIER.test svar
         defPart    = "#{@tab}#{ref = scope.freeVariable 'ref'} = #{svar};\n"
         svar       = ref
       if name and not @pattern
-        namePart   = "#{name} = #{svar}[#{ivar}]"
+        namePart   = "#{name} = #{svar}[#{kvar}]"
       unless @object
         lvar       = scope.freeVariable 'len'
-        forVarPart = "#{ivar} = 0, #{lvar} = #{svar}.length" + if @step then ", #{stepvar} = #{@step.compile(o, LEVEL_OP)}" else ''
-        stepPart   = if @step then "#{ivar} += #{stepvar}" else "#{ivar}++"
+        forVarPart = "#{kvarAssign}#{ivar} = 0, #{lvar} = #{svar}.length"
+        forVarPart += ", #{stepvar} = #{@step.compile o, LEVEL_OP}" if @step
+        stepPart   = "#{kvarAssign}#{if @step then "#{ivar} += #{stepvar}" else (if kvar isnt ivar then "++#{ivar}" else "#{ivar}++")}"
         forPart    = "#{forVarPart}; #{ivar} < #{lvar}; #{stepPart}"
     if @returns
       resultPart   = "#{@tab}#{rvar} = [];\n"
@@ -1638,12 +1658,12 @@ exports.For = class For extends While
       else
         body = Block.wrap [new If @guard, body] if @guard
     if @pattern
-      body.expressions.unshift new Assign @name, new Literal "#{svar}[#{ivar}]"
+      body.expressions.unshift new Assign @name, new Literal "#{svar}[#{kvar}]"
     defPart     += @pluckDirectCall o, body
     varPart     = "\n#{idt1}#{namePart};" if namePart
     if @object
-      forPart   = "#{ivar} in #{svar}"
-      guardPart = "\n#{idt1}if (!#{utility 'hasProp'}.call(#{svar}, #{ivar})) continue;" if @own
+      forPart   = "#{kvar} in #{svar}"
+      guardPart = "\n#{idt1}if (!#{utility 'hasProp'}.call(#{svar}, #{kvar})) continue;" if @own
     body        = body.compile merge(o, indent: idt1), LEVEL_TOP
     body        = '\n' + body + '\n' if body
     """
@@ -1937,7 +1957,7 @@ Closure =
 
   literalArgs: (node) ->
     node instanceof Literal and node.value is 'arguments' and not node.asKey
-    
+
   literalThis: (node) ->
     (node instanceof Literal and node.value is 'this' and not node.asKey) or
       (node instanceof Code and node.bound)

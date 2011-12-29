@@ -71,7 +71,7 @@ exports.run = ->
   return require './repl'                unless sources.length
   if opts.run
     opts.literals = sources.splice(1).concat opts.literals
-  process.argv = process.argv.slice(0, 2).concat opts.literals
+  process.argv = process.argv[0..1].concat opts.literals
   process.argv[0] = 'coffee'
   process.execPath = require.main.filename
   for source in sources
@@ -178,8 +178,12 @@ watch = (source, base) ->
   watchErr = (e) ->
     if e.code is 'ENOENT'
       return if sources.indexOf(source) is -1
-      removeSource source, base, yes
-      compileJoin()
+      try
+        rewatch()
+        compile()
+      catch e
+        removeSource source, base, yes
+        compileJoin()
     else throw e
 
   compile = ->
@@ -187,32 +191,22 @@ watch = (source, base) ->
     compileTimeout = wait 25, ->
       fs.stat source, (err, stats) ->
         return watchErr err if err
-        return if prevStats and (stats.size is prevStats.size and
-          stats.mtime.getTime() is prevStats.mtime.getTime())
+        return rewatch() if prevStats and stats.size is prevStats.size and
+          stats.mtime.getTime() is prevStats.mtime.getTime()
         prevStats = stats
         fs.readFile source, (err, code) ->
           return watchErr err if err
           compileScript(source, code.toString(), base)
-
-  watchErr = (e) ->
-    throw e unless e.code is 'ENOENT'
-    removeSource source, base, yes
-    compileJoin()
+          rewatch()
 
   try
-    watcher = fs.watch source, callback = (event) ->
-      if event is 'change'
-        compile()
-      else if event is 'rename'
-        watcher.close()
-        wait 250, ->
-          compile()
-          try
-            watcher = fs.watch source, callback
-          catch e
-            watchErr e
+    watcher = fs.watch source, compile
   catch e
     watchErr e
+
+  rewatch = ->
+    watcher?.close()
+    watcher = fs.watch source, compile
 
 
 # Watch a directory of files for new additions.
@@ -237,7 +231,7 @@ watchDir = (source, base) ->
     throw e unless e.code is 'ENOENT'
 
 unwatchDir = (source, base) ->
-  prevSources = sources.slice()
+  prevSources = sources[..]
   toRemove = (file for file in sources when file.indexOf(source) >= 0)
   removeSource file, base, yes for file in toRemove
   return unless sources.some (s, i) -> prevSources[i] isnt s
@@ -310,7 +304,7 @@ printTokens = (tokens) ->
 # `process.argv` that are specified in `SWITCHES`.
 parseOptions = ->
   optionParser  = new optparse.OptionParser SWITCHES, BANNER
-  o = opts      = optionParser.parse process.argv.slice 2
+  o = opts      = optionParser.parse process.argv[2..]
   o.compile     or=  !!o.output
   o.run         = not (o.compile or o.print or o.lint)
   o.print       = !!  (o.print or (o.eval or o.stdio and o.compile))
